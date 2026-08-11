@@ -1,107 +1,151 @@
-# MuseFuse: Multi-View Feature Fusion for Music Emotion Recognition
+# MusicFusion
 
-Official implementation of **MuseFuse** framework for music emotion recognition on **Memo2496** dataset, as submitted in *IEEE Transactions on Affective Computing*.
+Official training code accompanying the MusicFusion paper on multi-view music
+emotion recognition.
 
-## Framework Overview
+This repository is intended as a practical companion to the paper. The paper
+contains the motivation, method description, and analysis; this page focuses on
+preparing data, running the complete model, and reading its outputs.
 
-MuseFuse integrates three synergistic modules to address multi-view music emotion recognition challenges:
+## Installation
 
-- **ProtoAlign**: Prototype-guided semantic alignment with exponential moving average updates (momentum = 0.9)
-- **ReliaPseudo**: Reliability-guided self-training with entropy-based weighting and curriculum thresholding (0.6→0.3)
-- **TriDistill**: Symmetric tri-branch knowledge distillation across fusion-Mel-cochleagram branches (T=2.0)
+Python 3.8 or newer and a CUDA-capable PyTorch installation are recommended.
 
-## Requirements
+```bash
+git clone https://github.com/QilinLi147/MusicFusion.git
+cd MusicFusion
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-- Python 3.8+
-- PyTorch 1.13.0+ with CUDA 12.1
+## Data preparation
 
-## Dataset Preparation
+The training entry point reads paired Mel-spectrogram and cochleagram arrays,
+plus arousal and valence label arrays. The first dimension must refer to the
+same samples in every file.
 
-### Download Memo2496
-
-The Memo2496 dataset contains 2496 expert-annotated instrumental music tracks with continuous Valence and Arousal labels.
-
-**Download Links**:
-
-- Figshare: https://figshare.com/articles/dataset/Memo2496/25827034
-- IEEE DataPort: https://dx.doi.org/10.21227/3824-wy49
-
-### Expected Directory Structure
-
-Place the downloaded files in the following structure:
+Place the prepared NumPy files under one data root using the layout below. You
+only need the folder for the dataset you plan to run.
 
 ```text
-/data/qilin.li/dataset/memo/
-├── mel_spec.npy          # Mel-spectrogram features (2496, 128, 87)
-├── cochlegram.npy        # Cochleagram features (2496, 84, 87)
-└── labels/
-    ├── label_a.npy       # Arousal labels (2496,)
-    └── label_v.npy       # Valence labels (2496,)
+<DATA_ROOT>/
+├── memo/
+│   ├── mel_spec.npy
+│   ├── cochlegram.npy
+│   └── labels/
+│       ├── label_a.npy
+│       └── label_v.npy
+├── data_PMEmo/
+│   ├── mel_spec.npy
+│   ├── cochlegram.npy
+│   ├── label_a.npy
+│   └── label_v.npy
+├── data_1000songs/
+│   ├── mel_spec.npy
+│   ├── cochlegram.npy
+│   ├── label_a.npy
+│   └── label_v.npy
+└── DEAM/processed/
+    ├── mel_spec.npy
+    ├── cochlegram.npy
+    └── labels/
+        ├── label_a.npy
+        └── label_v.npy
 ```
 
-**Note**: Update the `--data_root` argument if your dataset is stored in a different location.
+Dataset identifiers accepted by the command line are:
 
-## Quick Start
+| Dataset | `--dataset` value |
+| --- | --- |
+| Memo2496 | `memo` |
+| PMEmo | `pmemo` |
+| 1000 Songs | `1000songs` |
+| DEAM | `deam` |
 
-### Train on Arousal Dimension
+Memo2496 can be obtained from
+[Figshare](https://figshare.com/articles/dataset/Memo2496/25827034) or
+[IEEE DataPort](https://dx.doi.org/10.21227/3824-wy49). Follow the respective
+dataset licenses and access conditions for all datasets.
+
+## Run the complete model
+
+For Memo2496 arousal:
 
 ```bash
-python train_musefuse.py --label_mode a
+python train_musicfusion.py \
+  --dataset memo \
+  --label-mode a \
+  --data-root /path/to/data \
+  --run-dir runs/memo_arousal
 ```
 
-### Train on Valence Dimension
+For Memo2496 valence, change `--label-mode` to `v` and use a new output
+directory:
 
 ```bash
-python train_musefuse.py --label_mode v
+python train_musicfusion.py \
+  --dataset memo \
+  --label-mode v \
+  --data-root /path/to/data \
+  --run-dir runs/memo_valence
 ```
 
-### Custom Configuration
+The same command works for the other supported datasets by changing
+`--dataset`. Each run directory must be empty or new.
+
+To continue an interrupted run:
 
 ```bash
-python train_musefuse.py \
-    --label_mode a \
-    --epochs 80 \
-    --batch_size 256 \
-    --lr 1e-3 \
-    --data_root /your/custom/path \
-    --out_dir ./checkpoints \
-    --mixed_precision
+python train_musicfusion.py \
+  --dataset memo \
+  --label-mode a \
+  --data-root /path/to/data \
+  --run-dir runs/memo_arousal \
+  --resume
 ```
 
-## Expected Results
+Use `--device cpu` when CUDA is unavailable. Run
+`python train_musicfusion.py --help` for the complete usage summary.
 
-Performance on Memo2496 dataset (as reported in the paper):
+## Outputs
 
-| Dimension | Accuracy | F1    | AUC   |
-| :-------- | :------- | :---- | :---- |
-| Arousal   | 83.40%   | 81.05 | 91.01 |
-| Valence   | 79.32%   | 85.27 | 85.09 |
+Training and validation are performed by the same command. The run directory
+contains:
 
-## Model Checkpoints
+| File | Contents |
+| --- | --- |
+| `best.pt` | Best validation checkpoint |
+| `last.pt` | Latest resumable checkpoint |
+| `summary.json` | Final training and validation metrics |
+| `history.jsonl` | Per-pass metrics and diagnostics |
+| `split_indices.npz` | Train/validation indices |
+| `split_manifest.json` | Split metadata |
+| `config.json` | Reproducibility metadata for the completed run |
 
-Trained checkpoints are saved in `checkpoints_musefuse/` with naming format:
+Accuracy, macro-F1, positive-class F1, precision, recall, and AUROC are written
+to `summary.json` after evaluation.
 
-```text
-musefuse_memo_{a|v}_{timestamp}.pt
+## Memo2496 citation
+
+If you use Memo2496, please cite:
+
+> Q. Li, C. L. P. Chen and T. Zhang, "Memo2496: Expert-Annotated Dataset and
+> Dual-View Adaptive Framework for Music Emotion Recognition," *IEEE
+> Transactions on Affective Computing*, 2026, doi:
+> [10.1109/TAFFC.2026.3715195](https://doi.org/10.1109/TAFFC.2026.3715195).
+
+```bibtex
+@article{li2026memo2496,
+  author   = {Li, Q. and Chen, C. L. P. and Zhang, T.},
+  title    = {Memo2496: Expert-Annotated Dataset and Dual-View Adaptive Framework for Music Emotion Recognition},
+  journal  = {IEEE Transactions on Affective Computing},
+  year     = {2026},
+  doi      = {10.1109/TAFFC.2026.3715195},
+  keywords = {Labeling; Music; Multiple signal classification; Modeling; Emotion recognition; Annotations; Convolutional neural networks; Tracking; Protocols; Conferences; Music emotion recognition; Affective computing; Dual-view learning; Cross-attention fusion; Pseudo-label learning; Contrastive memory; Expert-annotated dataset; Instrumental music dataset}
+}
 ```
-
-Each checkpoint contains:
-
-- Model state dict
-- Training configuration
-- Validation metrics
 
 ## License
 
-This project is released under the MIT License. See the `LICENSE` file for details.
-
-## Acknowledgements
-
-This work was supported by:
-
-- National Natural Science Foundation of China (Grant No. 62222603)
-- STI2030-Major Projects (2021ZD0200700)
-- Key-Area R&D Programme of Guangdong Province (2023B0303030001)
-- Guangdong Introducing Innovative and Entrepreneurial Teams (2019ZT08X214)
-- Science and Technology Programme of Guangzhou (2024A04J6310)
-
+This project is released under the MIT License. See [LICENSE](LICENSE).
