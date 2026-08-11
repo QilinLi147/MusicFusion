@@ -1,6 +1,5 @@
-import math
 import os
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -143,4 +142,3 @@ def get_dataset_stats(dataset: MusicEmotionDataset) -> Dict[str, float]:
         "pos_ratio": pos / total if total > 0 else 0.0,
         "neg_ratio": neg / total if total > 0 else 0.0,
     }
-

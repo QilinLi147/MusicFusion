@@ -1,42 +1,21 @@
-"""MuseFuse library entry point.
+"""Public MusicFusion library entry point."""
 
-This module aggregates the core classes and functions required by the MuseFuse
-training script, providing a concise API for the Memo2496 public release.
-"""
-
-from .config import MuseFuseConfig, get_default_config, resolve_dataset_paths
-from .data import MusicEmotionDataset, build_dataloaders, get_dataset_stats
-from .models import MuseFuseModel
-from .losses import (
-    gdd_loss,
-    lsd_loss,
-    reliability_weighted_ce,
-    cosine_prototype_loss,
-    distill_kl,
-)
-from .train_utils import (
-    set_seed,
-    MetricsTracker,
-    GradientScaler,
-    compute_dynamic_tradeoff,
-)
+from .config import dataset_input_shapes, resolve_dataset_paths
+from .data import MusicEmotionDataset, build_dataloaders, get_dataset_stats, stratified_split
+from .models import MusicFusionModel
+from .redesign_modules import ProtoAlign, ReliaPseudo, TriDistill
+from .train_utils import set_seed
 
 __all__ = [
-    "MuseFuseConfig",
-    "get_default_config",
+    "dataset_input_shapes",
     "resolve_dataset_paths",
     "MusicEmotionDataset",
     "build_dataloaders",
     "get_dataset_stats",
-    "MuseFuseModel",
-    "gdd_loss",
-    "lsd_loss",
-    "reliability_weighted_ce",
-    "cosine_prototype_loss",
-    "distill_kl",
+    "stratified_split",
+    "MusicFusionModel",
+    "ProtoAlign",
+    "ReliaPseudo",
+    "TriDistill",
     "set_seed",
-    "MetricsTracker",
-    "GradientScaler",
-    "compute_dynamic_tradeoff",
 ]
-

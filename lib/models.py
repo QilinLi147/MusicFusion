@@ -4,23 +4,8 @@ import torch
 import torch.nn as nn
 
 
-class MuseFuseModel(nn.Module):
-    """MuseFuse: Multi-View Feature Fusion for Music Emotion Recognition.
-
-    Integrates three core modules as described in the MuseFuse paper:
-
-    - ProtoAlign: Prototype-guided semantic alignment with EMA-updated prototype bank
-      (momentum = 0.9, see Eq. (L_proto)).
-    - ReliaPseudo: Reliability-guided pseudo-labelling with entropy-based weighting
-      and curriculum thresholding (0.6 → 0.3, Eq. (L_pseudo)).
-    - TriDistill: Symmetric tri-branch KL distillation across fusion–Mel–cochleagram
-      branches (temperature T = 2.0, Eqs. (L_FM, L_MF, L_FC, L_CF)).
-
-    Architecture:
-    - Dual-view encoders for Mel spectrograms and cochleagrams.
-    - Adaptive gating network for sample-specific fusion of Mel/Cocheragram features.
-    - Three classification heads for Mel / Cochleagram / Fusion branches.
-    """
+class MusicFusionModel(nn.Module):
+    """Backbone used by the public MusicFusion training entry point."""
 
     def __init__(
         self,
@@ -32,7 +17,6 @@ class MuseFuseModel(nn.Module):
         num_classes: int,
     ) -> None:
         super().__init__()
-        # View-specific encoders
         self.mel_encoder = nn.Sequential(
             nn.Linear(mel_dim, hidden_mel),
             nn.BatchNorm1d(hidden_mel),
@@ -52,7 +36,6 @@ class MuseFuseModel(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-        # Adaptive gating for sample-specific fusion
         self.gating = nn.Sequential(
             nn.Linear(fusion_hidden * 2, fusion_hidden),
             nn.ReLU(inplace=True),
@@ -60,16 +43,12 @@ class MuseFuseModel(nn.Module):
             nn.Sigmoid(),
         )
 
-        # Classification heads
         self.mel_head = nn.Linear(fusion_hidden, num_classes)
         self.coch_head = nn.Linear(fusion_hidden, num_classes)
         self.fusion_head = nn.Linear(fusion_hidden, num_classes)
 
-        # Prototype bank for ProtoAlign (Eq. L_proto)
-        self.prototypes = nn.Parameter(torch.randn(num_classes, fusion_hidden))
-
     def forward(self, mel: torch.Tensor, coch: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """Forward pass through dual encoders, gating fusion and heads."""
+        """Return features and logits required by training and evaluation."""
         batch_size = mel.size(0)
         mel_flat = mel.view(batch_size, -1)
         coch_flat = coch.view(batch_size, -1)
@@ -92,4 +71,3 @@ class MuseFuseModel(nn.Module):
             "coch_logits": coch_logits,
             "fusion_logits": fusion_logits,
         }
-
